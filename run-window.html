@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TobyFlow — Run Workflow</title>
+    <style>
+      /* [PLAN A P3.1] Run-window: host NHẸ chạy workflow không mở editor. UI slim (Phase 4 nâng cấp sau). */
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #161616;
+        color: #e8e8ea;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .rw-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+      }
+      .rw-title {
+        font-size: 14px;
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rw-status {
+        font-size: 11px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #a8a8ae;
+        white-space: nowrap;
+      }
+      .rw-status--running {
+        background: rgba(204, 255, 0, 0.14);
+        color: #ccff00;
+      }
+      .rw-status--completed {
+        background: rgba(74, 222, 128, 0.14);
+        color: #4ade80;
+      }
+      .rw-status--failed {
+        background: rgba(248, 113, 113, 0.14);
+        color: #f87171;
+      }
+      .rw-stop {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(248, 113, 113, 0.4);
+        background: transparent;
+        color: #f87171;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .rw-stop:hover {
+        background: rgba(248, 113, 113, 0.12);
+      }
+      .rw-stop:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .rw-progress {
+        padding: 10px 14px;
+        font-size: 12px;
+        color: #a8a8ae;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-shrink: 0;
+      }
+      .rw-progress b {
+        color: #e8e8ea;
+      }
+      .rw-log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 14px;
+        font-size: 11.5px;
+        line-height: 1.55;
+        font-family: ui-monospace, Menlo, monospace;
+      }
+      .rw-log-line {
+        color: #8b8b92;
+        word-break: break-word;
+      }
+      .rw-log-line--warn {
+        color: #fbbf24;
+      }
+      .rw-log-line--error {
+        color: #f87171;
+      }
+      .rw-log-line--ok {
+        color: #4ade80;
+      }
+      /* P4.1: progress bar + node list */
+      .rw-bar {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.07);
+        flex-shrink: 0;
+      }
+      .rw-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: #ccff00;
+        transition: width 0.4s ease;
+      }
+      .rw-bar-fill--error {
+        background: #f87171;
+      }
+      .rw-nodes {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .rw-node {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid transparent;
+        font-size: 12.5px;
+      }
+      .rw-node--running {
+        border-color: rgba(204, 255, 0, 0.35);
+        background: rgba(204, 255, 0, 0.05);
+      }
+      .rw-node--completed {
+        opacity: 0.85;
+      }
+      .rw-node--failed {
+        border-color: rgba(248, 113, 113, 0.4);
+      }
+      .rw-node-idx {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: #a8a8ae;
+        font-size: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .rw-node-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rw-node-type {
+        font-size: 10px;
+        color: #6b6b72;
+        flex-shrink: 0;
+      }
+      .rw-node-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        color: #8b8b92;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .rw-node-badge--running {
+        background: rgba(204, 255, 0, 0.15);
+        color: #ccff00;
+      }
+      .rw-node-badge--completed {
+        background: rgba(74, 222, 128, 0.15);
+        color: #4ade80;
+      }
+      .rw-node-badge--failed {
+        background: rgba(248, 113, 113, 0.15);
+        color: #f87171;
+      }
+      .rw-node-badge--skipped {
+        background: rgba(251, 191, 36, 0.12);
+        color: #fbbf24;
+      }
+      .rw-node--disabled {
+        opacity: 0.4;
+      }
+      /* P4.3: provider guidance panel */
+      .rw-providers {
+        margin: 10px 12px 0;
+        padding: 12px;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        background: rgba(251, 191, 36, 0.07);
+        border-radius: 12px;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+      .rw-providers h4 {
+        margin: 0 0 6px;
+        font-size: 12.5px;
+        color: #fbbf24;
+      }
+      .rw-providers ul {
+        margin: 0 0 10px;
+        padding-left: 18px;
+        color: #d8d8dc;
+      }
+      .rw-providers li {
+        margin: 2px 0;
+      }
+      .rw-providers .rw-pv-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .rw-pv-btn {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: transparent;
+        color: #e8e8ea;
+      }
+      .rw-pv-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .rw-pv-btn--primary {
+        border-color: rgba(204, 255, 0, 0.4);
+        color: #ccff00;
+      }
+      .rw-pv-btn--primary:hover {
+        background: rgba(204, 255, 0, 0.1);
+      }
+      /* P4.4: log collapsible */
+      .rw-log-wrap {
+        flex-shrink: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        display: flex;
+        flex-direction: column;
+        max-height: 45%;
+      }
+      .rw-log-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        padding: 8px 14px;
+        background: transparent;
+        border: none;
+        color: #8b8b92;
+        font-size: 11.5px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .rw-log-toggle:hover {
+        color: #e8e8ea;
+      }
+      .rw-log-toggle .chev {
+        transition: transform 0.15s;
+        display: inline-block;
+      }
+      .rw-log-wrap--open .rw-log-toggle .chev {
+        transform: rotate(90deg);
+      }
+      .rw-log {
+        display: none;
+      }
+      .rw-log-wrap--open .rw-log {
+        display: block;
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="rw-header">
+      <div class="rw-title" id="rwTitle">Loading workflow...</div>
+      <span class="rw-status" id="rwStatus">Starting</span>
+      <button type="button" class="rw-stop" id="rwStop" disabled>Stop</button>
+    </div>
+    <div class="rw-bar"><div class="rw-bar-fill" id="rwBarFill"></div></div>
+    <div class="rw-progress" id="rwProgress">
+      Preparing execution environment...
+    </div>
+    <div class="rw-providers" id="rwProviders" hidden></div>
+    <div class="rw-nodes" id="rwNodes"></div>
+    <div class="rw-log-wrap" id="rwLogWrap">
+      <button type="button" class="rw-log-toggle" id="rwLogToggle">
+        <span class="chev">▸</span> Detailed log
+      </button>
+      <div class="rw-log" id="rwLog"></div>
+    </div>
+
+    <!-- Core execution stack — ĐÚNG thứ tự workflow-editor.html, BỎ editor UI
+       (drawflow/html2canvas/DiagramCanvas/WorkflowList/WorkflowEditor/modal templates...).
+       P2.5 verified: executor 0 coupling editor — chỉ cần data layer + core. -->
+    <script src="src/core/utils.js"></script>
+    <script src="src/core/IdGenerator.js"></script>
+    <script src="src/core/EventBus.js"></script>
+    <script src="src/core/I18n.js"></script>
+    <script src="src/core/ApiBaseConfig.js"></script>
+    <script src="src/core/LocalStorage.js"></script>
+    <script src="src/core/AuthManager.js"></script>
+    <script src="src/core/FeatureGate.js"></script>
+    <script src="src/core/WatermarkClient.js"></script>
+    <script src="vendor/mediabunny.js"></script>
+    <script src="src/core/VideoWatermarkRemover.js"></script>
+    <script src="src/core/VideoWmClient.js"></script>
+    <script src="src/core/SystemConfig.js"></script>
+    <script src="src/core/ValidationRules.js"></script>
+    <script src="src/core/RequestSigner.js"></script>
+    <script src="src/core/ProviderConfigManager.js"></script>
+    <script src="src/core/ProviderMeta.js"></script>
+    <script src="src/core/ModelRegistry.js"></script>
+    <script src="src/core/VoiceRegistry.js"></script>
+    <script src="src/core/CharacterRegistry.js"></script>
+    <script src="src/core/ExecutionConfig.js"></script>
+    <script src="src/core/errors/ConfigRequiredError.js"></script>
+    <script src="src/core/UsageSync.js"></script>
+    <script src="src/core/ExecutionGate.js"></script>
+    <script src="src/core/errors/QuotaErrorHandler.js"></script>
+    <script src="src/core/TrialGate.js"></script>
+    <script src="src/core/RequestCoalescer.js"></script>
+    <script src="src/core/ApiStorage.js"></script>
+    <script src="src/core/StorageManager.js"></script>
+    <script src="src/core/SseBroadcastManager.js"></script>
+    <script src="src/core/SseClient.js"></script>
+    <script src="src/core/TelegramExecutor.js"></script>
+    <script src="src/core/RetryHelper.js"></script>
+    <script src="src/core/ExecutionLock.js"></script>
+    <script src="src/core/BlobUrlManager.js"></script>
+    <script src="src/core/ThumbnailCache.js"></script>
+    <script src="src/core/PendingUploadStore.js"></script>
+    <script src="src/core/TileCache.js"></script>
+    <script src="src/core/TileResolver.js"></script>
+    <script src="src/core/AlbumStore.js"></script>
+    <script src="src/core/ImageStore.js"></script>
+    <script src="src/core/FileUploader.js"></script>
+    <script src="src/core/MediaRegistry.js"></script>
+    <script src="src/settings/StorageSettings.js"></script>
+    <script src="src/core/flow-api/FlowApiTelemetry.js"></script>
+    <script src="src/core/QueueItem.js"></script>
+    <script src="src/core/Job.js"></script>
+    <script src="src/core/MentionParser.js"></script>
+    <script src="src/core/FlowV2CorrelationProtocol.js"></script>
+    <script src="src/core/FlowV2CorrelationBroker.js"></script>
+    <script src="src/core/EditorExecutor.js"></script>
+    <script src="src/core/TileMonitor.js"></script>
+    <script src="src/core/FlowWebRecovery.js"></script>
+    <script src="src/core/RefImageAssignment.js"></script>
+    <script src="src/core/PromptQueue.js"></script>
+    <script src="src/core/WorkflowSingleNodeSession.js"></script>
+    <script src="src/core/WorkflowExecutor.js"></script>
+    <script src="src/core/flow/FlowDriverRegistry.js"></script>
+    <script src="src/core/MessageBridge.js"></script>
+    <script src="src/core/ProviderTabLock.js"></script>
+    <script src="src/core/ChatGPTSession.js"></script>
+    <script src="src/core/ChatGPTConfig.js"></script>
+    <script src="src/core/GrokSession.js"></script>
+    <script src="src/core/MuseSession.js"></script>
+    <script src="src/core/GrokConfig.js"></script>
+    <script src="src/core/GeminiSession.js"></script>
+    <script src="src/core/providers/AIProviderAdapter.js"></script>
+    <script src="src/core/providers/FlowAdapter.js"></script>
+    <script src="src/core/providers/ChatGPTAdapter.js"></script>
+    <script src="src/core/providers/GrokAdapter.js"></script>
+    <script src="src/core/providers/MuseAdapter.js"></script>
+    <script src="src/core/providers/GeminiAdapter.js"></script>
+    <script src="src/core/providers/ProviderRegistry.js"></script>
+    <!-- FLOW_API_BRIDGE_PLAN — Flow API direct mode (TobyBridge) + last-frame extractor -->
+    <script src="src/core/VideoFrameExtractor.js"></script>
+    <script src="src/core/BridgeClient.js"></script>
+    <script src="src/core/providers/FlowApiAdapter.js"></script>
+    <script src="src/core/flow-api/FlowApiDriverError.js"></script>
+    <script src="src/core/flow-api/FlowApiV1Driver.js"></script>
+    <script src="src/core/flow-api/FlowApiV2CheckpointStore.js"></script>
+    <script src="src/core/flow-api/FlowApiV2Driver.js"></script>
+    <script src="src/core/flow-api/FlowApiDriverResolver.js"></script>
+    <script src="src/core/flow-api/FlowApiDownloadRetry.js"></script>
+    <script src="src/core/flow-api/FlowApiFacade.js"></script>
+    <script src="src/core/flow-api/FlowApiSessionCoordinator.js"></script>
+    <script src="src/core/ImmediateUploader.js"></script>
+    <script src="src/core/BackendSync.js"></script>
+    <script src="src/shared/CustomDialog.js"></script>
+    <script src="src/shared/ProjectHelper.js"></script>
+    <script src="src/shared/DownloadHelper.js"></script>
+    <script src="src/workflow/NodeTemplates.js"></script>
+    <script src="src/history/GenerationHistory.js"></script>
+    <script src="run-window-init.js"></script>
+  </body>
+</html>

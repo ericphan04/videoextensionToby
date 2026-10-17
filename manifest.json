@@ -1,0 +1,234 @@
+{
+  "action": {
+    "default_title": "Open TobyFlow"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "generate": {
+      "description": "Generate with current prompt",
+      "suggested_key": {
+        "default": "Alt+G"
+      }
+    },
+    "toggle-sidebar": {
+      "description": "Toggle sidebar",
+      "suggested_key": {
+        "default": "Alt+S"
+      }
+    }
+  },
+  "content_scripts": [
+    {
+      "css": [],
+      "js": [
+        "src/core/ConfigSnapshotAccess.js",
+        "src/core/flow/FlowPageDriver.js",
+        "src/core/flow/FlowDriverRegistry.js",
+        "src/core/flow/drivers/v2/FlowV2Editor.js",
+        "src/core/flow/drivers/v2/FlowV2GenerationSettings.js",
+        "src/core/flow/drivers/v2/FlowV2PageSettings.js",
+        "src/core/flow/drivers/v2/FlowV2TileResolver.js",
+        "src/core/flow/drivers/v2/FlowV2ComponentPicker.js",
+        "src/core/flow/drivers/v2/FlowV2MediaMenu.js",
+        "src/core/flow/drivers/FlowV2Driver.js",
+        "content.js",
+        "src/core/TrackerRegenProjection.js",
+        "floating-tracker-flow.js",
+        "media-intercept-bridge.js"
+      ],
+      "matches": ["https://flow.google.com/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": ["media-interceptor.js", "flow-v2-correlation-observer.js"],
+      "matches": ["https://flow.google.com/*"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "js": ["slate-bridge.js"],
+      "matches": ["https://flow.google.com/*"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "js": ["oauth-bridge.js"],
+      "matches": ["*://labs.toby.vn/auth/google/success*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": ["ref-bridge.js"],
+      "matches": ["*://labs.toby.vn/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "src/core/ConfigSnapshotAccess.js",
+        "floating-tracker-chat.js",
+        "chat-content-chatgpt.js"
+      ],
+      "matches": ["*://chatgpt.com/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "src/core/ConfigSnapshotAccess.js",
+        "floating-tracker-chat.js",
+        "chat-content-grok.js"
+      ],
+      "matches": ["https://grok.com/*", "https://*.grok.com/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "src/core/ConfigSnapshotAccess.js",
+        "floating-tracker-chat.js",
+        "chat-content-gemini.js",
+        "media-intercept-bridge.js"
+      ],
+      "matches": ["*://gemini.google.com/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "src/core/ConfigSnapshotAccess.js",
+        "floating-tracker-chat.js",
+        "chat-content-muse.js"
+      ],
+      "matches": ["https://muse.ai/*", "https://*.muse.ai/*"],
+      "run_at": "document_idle"
+    },
+    {
+      "js": ["media-interceptor.js"],
+      "matches": ["*://gemini.google.com/*"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "all_frames": false,
+      "exclude_matches": [
+        "*://accounts.google.com/*",
+        "*://*.accounts.google.com/*",
+        "*://oauth.googleusercontent.com/*",
+        "*://*.oauth.googleusercontent.com/*",
+        "*://*.stripe.com/*",
+        "*://checkout.link.com/*",
+        "*://*.lemonsqueezy.com/*",
+        "*://*.paypal.com/*",
+        "*://polar.sh/*",
+        "*://*.polar.sh/*",
+        "*://*.sepay.vn/*"
+      ],
+      "js": ["i2p-content.js"],
+      "matches": ["http://*/*", "https://*/*"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src https://*.toby.vn;"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "enabled": true,
+        "id": "flow_media_headers",
+        "path": "rules/flow-media-headers.json"
+      }
+    ]
+  },
+  "description": "TobyFlow: Auto Flow for Google Flow, Auto ChatGPT, Auto Grok & Auto Muse. Batch AI image/video generation and workflow automation.",
+  "externally_connectable": {
+    "matches": ["*://labs.toby.vn/*"]
+  },
+  "host_permissions": [
+    "https://labs.google/*",
+    "https://flow.google.com/*",
+    "*://chatgpt.com/*",
+    "*://gemini.google.com/*",
+    "https://muse.ai/*",
+    "https://*.muse.ai/*",
+    "https://grok.com/*",
+    "https://*.grok.com/*",
+    "*://x.com/*",
+    "*://*.x.com/*",
+    "*://*.x.ai/*",
+    "*://labs.toby.vn/*",
+    "*://storage.googleapis.com/*",
+    "*://flow-content.google/*",
+    "*://www.pinterest.com/*",
+    "*://www.youtube.com/*",
+    "*://www.tiktok.com/*",
+    "*://www.google.com/*",
+    "*://www.facebook.com/*",
+    "*://unsplash.com/*",
+    "*://www.etsy.com/*",
+    "*://pixabay.com/*",
+    "*://www.amazon.com/*",
+    "\u003Call_urls>"
+  ],
+  "icons": {
+    "128": "icons/icon-128.png",
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApneCRvUvStXJFKTDTnMo/dAKGdnTX1Ng9QGSr6bUyi6HYtKo3jFLRb4EDrjbicc72r1wLqOuJMiHvjbnLdqy/K1PShQeJki2/TrJF630/g9a5V5k+AUOQZQRbcbpdGDXLRY87q/k3VfaUUrgLuIWK4OYLVaIKINzKThOTK0WReW4OOfiZpYoS8qTH3xAJiiRLZdKAgIiLvb+daxBD+li0WDaZucQ+uLOXiPBcxh5BdRW9c0jijghephxOjVWGx7QbZ3AfyZpAB0CVuW6qafLMe6BtsDAcxybzrRU0Dexi5s/JKjmVP77To3qD+s/K6tQPHCptnvcrlv3JUJQOe7UFwIDAQAB",
+  "manifest_version": 3,
+  "name": "TobyFlow - Auto Flow, Auto ChatGPT, Auto Grok, Auto Muse & AI Workflows",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "unlimitedStorage",
+    "sidePanel",
+    "scripting",
+    "tabs",
+    "downloads",
+    "notifications",
+    "alarms",
+    "contextMenus",
+    "declarativeNetRequestWithHostAccess",
+    "clipboardWrite"
+  ],
+  "short_name": "TobyFlow",
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "update_url": "https://clients2.google.com/service/update2/crx",
+  "version": "1.3.78",
+  "web_accessible_resources": [
+    {
+      "matches": ["https://labs.google/*", "https://flow.google.com/*"],
+      "resources": [
+        "sidebar.html",
+        "workflow-editor.html",
+        "workflow-template-editor.html",
+        "workflow-template-editor-init.js",
+        "angles-editor.html",
+        "effects-editor.html",
+        "auto-capcut-builder.html",
+        "auto-capcut-builder.js",
+        "auto-capcut-builder.css",
+        "settings.html",
+        "settings.css",
+        "settings-page.js",
+        "workflow-editor-init.js",
+        "angles-editor-init.js",
+        "effects-editor-init.js",
+        "angles-editor.css",
+        "src/**/*.js",
+        "src/**/*.css",
+        "lib/*.js",
+        "lib/*.css",
+        "icons/minimize.svg",
+        "icons/loading-bg.png",
+        "icons/ratio.svg"
+      ]
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "resources": ["icons/icon-48.png", "icons/icon-128.png"]
+    }
+  ]
+}
